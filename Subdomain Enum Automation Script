@@ -1,3 +1,6 @@
+
+//####-----BY @NafisiAslH ----
+
 //Importing File Paths
 @amasspassive="/opt/tools/Amass/passive.ini"
 @resolvers="/opt/wordlists/resolvers.txt"
