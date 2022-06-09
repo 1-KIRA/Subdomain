@@ -1,0 +1,65 @@
+//Importing File Paths
+@amasspassive="/opt/tools/Amass/passive.ini"
+@resolvers="/opt/wordlists/resolvers.txt"
+@dnsmicro="/opt/wordlists/dnsbrute.txt"
+
+//Create Temporary Inscope File
+echo @rootsubs{file}
+
+//Create Temporary OutSource File
+echo @outscope{!file}
+
+//#####---Passive SubDomain Enumeration ---
+//assetfinder subdomains
+assetfinder @z |grep @z
+
+//Passive Amass Scan
+amass enum -df @inscopefile -blf @outscope -config @amasspassive -o @outfile
+
+//Subfinder Enumeration
+subfinder -all -dL @inscope -nc -silent
+
+//Findomain Subdomains
+dinsomain -f @inscopefile -o @outfile
+
+//Filter inscope and outscope domains from passive enumeration
+subops filter --df @rootsubs{file} --ef @outscope{!file}
+
+//####----Active Subdomain Enumeration ----
+//DNS Bruteforce using PureDNS
+puredns bruteforce @dnsmicro -r @resolvers -w @outfile @z
+
+//Get Subdomains from CNAMEs
+dnsx -retry 3 -cname -l @passivesubs{file} -o @outfile
+
+//Filter inscope and outscope domains from active enumeration
+subops filter --df @rootsubs{file} --ef @outscope{!file}
+
+//Merge Results From Active and Passive Sources
+
+//Check If Active Sub Enum was Useful
+bninja diff @active{file} @passive{file} -1
+
+//Merge passive and activer subs
+cat @passive{file} @active{file} | bninja uniq
+
+//Check for subdomain Takeover if in scope
+subjack -w @allsubs{file} -t 100 -timeout 30 -o @outfile -ssl
+
+//###--- Filter Found SubDomains ---
+//rusolver -r @resolvers -i
+
+//Filter Ips Pointing to Private IP Addresses
+rusolverfilter -sub-only
+
+//Subdomains Hosting Web Services API, WebPage etc
+https-pd -silent -t 100 -retries 2
+
+//remove https from httpx output
+cut -d "/" -f 3
+
+//Subdomains Not Hosting Web Services
+bninja diff @filtered{file} @webservices{file} -1
+
+//PortScan all non Web
+naabu -ec -ep 21,22,80,443 -verify -nmap-cli "nmap -sC -sV" -o @outputfile -c 50 -list @nonwebsubs{file}
